@@ -1,8 +1,8 @@
 class Post {
-  final int postId;
-  final String userName;
-  final String text;
-  final DateTime publishDate;
+  final String? postId;
+  final String? userName;
+  final String? text;
+  final String? publishDate;
   Post({
     required this.postId,
     required this.userName,

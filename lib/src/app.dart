@@ -1,5 +1,8 @@
+import 'package:date_format/date_format.dart';
+import 'package:demo_posts_app/src/providers/post_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import 'models/post.dart';
 
@@ -9,8 +12,6 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  List<Post> _posts = [];
-
   late TextEditingController _controller01;
   late TextEditingController _controller02;
 
@@ -28,7 +29,15 @@ class _HomeState extends State<Home> {
     super.dispose();
   }
 
-  Widget postAdder(context) {
+  Widget postAdder(context, {Post? post}) {
+    final postProvider = Provider.of<PostProvider>(context, listen: false);
+    if (post != null) {
+      _controller01.text = postProvider.getUserName!;
+      _controller02.text = postProvider.getText!;
+      postProvider.loadAll(post);
+    } else {
+      postProvider.loadAll(null);
+    }
     return Dialog(
       backgroundColor: Theme.of(context).primaryColor,
       child: Container(
@@ -60,18 +69,21 @@ class _HomeState extends State<Home> {
             MaterialButton(
               color: Theme.of(context).accentColor,
               onPressed: () {
-                setState(
-                  () => _posts.add(
-                    Post(
-                      userName: _controller01.text,
-                      text: _controller02.text,
-                      postId: _posts.length,
-                      publishDate: DateTime.now(),
-                    ),
-                  ),
-                );
+                // setState(
+                //   () => _posts.add(
+                //     Post(
+                //       userName: _controller01.text,
+                //       text: _controller02.text,
+                //       postId: _posts.length.toString(),
+                //       publishDate: DateTime.now().toIso8601String(),
+                //     ),
+                //   ),
+                // );
+                postProvider.setUserName = _controller01.text;
+                postProvider.setText = _controller02.text;
                 _controller01.text = '';
                 _controller02.text = '';
+                postProvider.savePost();
                 Navigator.pop(context);
               },
               child: Text(
@@ -87,6 +99,7 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
+    final postProvider = Provider.of<PostProvider>(context);
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -112,15 +125,71 @@ class _HomeState extends State<Home> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: _posts.length,
-        itemBuilder: (context, index) {
-          return ListTile(
-            title: Text(_posts[index].text),
-            subtitle: Text("From: ${_posts[index].userName}"),
-          );
-        },
-      ),
+      body: StreamBuilder<List<Post>>(
+          stream: postProvider.getPosts,
+          builder: (context, snapshot) {
+            return ListView.builder(
+              itemCount: snapshot.data!.length,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.all(10.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10.0),
+                    color: Theme.of(context).accentColor,
+                    border: Border.all(
+                      color: Colors.black,
+                      width: 2.0,
+                    ),
+                  ),
+                  child: ListTile(
+                    trailing: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        GestureDetector(
+                          child: Icon(Icons.edit),
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (context) {
+                                return this.postAdder(context,
+                                    post: snapshot.data![index]);
+                              },
+                            );
+                          },
+                        ),
+                        GestureDetector(
+                          child: Icon(Icons.delete),
+                          onTap: () {
+                            postProvider.removePost(snapshot.data![index].postId!);
+                          },
+                        ),
+                      ],
+                    ),
+                    title: Text(
+                      snapshot.data![index].text!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .headline5!
+                          .copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top:8.0),
+                      child: Text(
+                        "From: ${snapshot.data![index].userName}, on: ${formatDate(DateTime.parse(snapshot.data![index].publishDate!), [
+                              MM,
+                              ' ',
+                              d,
+                              ' ',
+                              yyyy
+                            ])}",
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
     );
   }
 }
